@@ -1,0 +1,711 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { 
+  Github, Linkedin, Instagram, Mail, ExternalLink, 
+  ChevronRight, Play, X, Code2, Server, Palette, 
+  Terminal, MonitorPlay, Award, ArrowUpRight, CheckCircle2
+} from 'lucide-react';
+
+// --- STYLES & FONTS ---
+const GlobalStyles = () => (
+  <style dangerouslySetInnerHTML={{__html: `
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;700&family=Poppins:wght@800&display=swap');
+
+    :root {
+      --bg-color: #0B1026;
+      --primary: #00E5FF;
+      --secondary: #FF4FD8;
+      --accent: #FFD93D;
+      --accent2: #7C4DFF;
+      --success: #00FF85;
+      --card-bg: rgba(255, 255, 255, 0.05);
+      --text-main: #FFFFFF;
+      --text-sub: #B6B8C5;
+    }
+
+    /* Cyberpunk Mode Overrides */
+    .cyberpunk-mode {
+      --bg-color: #050505;
+      --primary: #FCE205; /* Cyberpunk Yellow */
+      --secondary: #00F0FF; /* Cyan */
+      --accent: #FF003C; /* Neon Red */
+      --accent2: #B026FF; 
+      --card-bg: rgba(255, 0, 60, 0.08);
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      font-family: 'Inter', sans-serif;
+      overflow-x: hidden;
+      cursor: none; /* Hide default cursor */
+    }
+
+    h1, h2, h3, .font-heading { font-family: 'Poppins', sans-serif; }
+    code, .font-code { font-family: 'JetBrains Mono', monospace; }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-track { background: var(--bg-color); }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 10px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--primary); }
+
+    /* Animations */
+    @keyframes glitch {
+      0% { clip-path: inset(40% 0 61% 0); transform: translate(-2px, 2px); }
+      20% { clip-path: inset(92% 0 1% 0); transform: translate(2px, -2px); }
+      40% { clip-path: inset(43% 0 1% 0); transform: translate(2px, 2px); }
+      60% { clip-path: inset(25% 0 58% 0); transform: translate(-2px, -2px); }
+      80% { clip-path: inset(54% 0 7% 0); transform: translate(2px, 2px); }
+      100% { clip-path: inset(58% 0 43% 0); transform: translate(-2px, -2px); }
+    }
+    .animate-glitch::before, .animate-glitch::after {
+      content: attr(data-text);
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: var(--bg-color);
+    }
+    .animate-glitch::before {
+      left: 2px; text-shadow: -2px 0 var(--secondary);
+      animation: glitch 2s infinite linear alternate-reverse;
+    }
+    .animate-glitch::after {
+      left: -2px; text-shadow: -2px 0 var(--primary);
+      animation: glitch 3s infinite linear alternate-reverse;
+    }
+
+    /* Aurora & Noise */
+    .noise-overlay {
+      position: fixed; inset: 0; z-index: 50; pointer-events: none;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+      opacity: 0.03; mix-blend-mode: overlay;
+    }
+
+    /* Utilites */
+    .glass-card {
+      background: var(--card-bg);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .text-gradient {
+      background: linear-gradient(135deg, var(--primary), var(--accent2), var(--secondary));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .neon-glow { box-shadow: 0 0 20px rgba(0, 229, 255, 0.4); }
+    .neon-glow:hover { box-shadow: 0 0 30px rgba(0, 229, 255, 0.7); }
+    
+    /* 3D Tilt Wrapper */
+    .tilt-wrapper { perspective: 1000px; }
+    .tilt-inner { transition: transform 0.1s ease-out; transform-style: preserve-3d; }
+  `}} />
+);
+
+// --- HOOKS ---
+
+const useIntersectionObserver = (options = { threshold: 0.1 }) => {
+  const [inView, setInView] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) {
+        setInView(true);
+        observer.unobserve(entry.target);
+      }
+    }, options);
+    if (ref.current) observer.observe(ref.current);
+    return () => observer.disconnect();
+  }, []);
+  return [ref, inView];
+};
+
+const useMousePosition = () => {
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [isHovering, setIsHovering] = useState(false);
+
+  useEffect(() => {
+    const updatePosition = (e) => setPosition({ x: e.clientX, y: e.clientY });
+    const handleMouseOver = (e) => {
+      if (e.target.tagName.toLowerCase() === 'button' || e.target.tagName.toLowerCase() === 'a' || e.target.closest('.interactive')) {
+        setIsHovering(true);
+      } else {
+        setIsHovering(false);
+      }
+    };
+
+    window.addEventListener('mousemove', updatePosition);
+    window.addEventListener('mouseover', handleMouseOver);
+    return () => {
+      window.removeEventListener('mousemove', updatePosition);
+      window.removeEventListener('mouseover', handleMouseOver);
+    };
+  }, []);
+  return { ...position, isHovering };
+};
+
+const useScrollDirection = () => {
+  const [scrollDir, setScrollDir] = useState('up');
+  const [isTop, setIsTop] = useState(true);
+
+  useEffect(() => {
+    let lastScrollY = window.pageYOffset;
+    const updateScrollDir = () => {
+      const scrollY = window.pageYOffset;
+      setIsTop(scrollY < 50);
+      const direction = scrollY > lastScrollY ? 'down' : 'up';
+      if (direction !== scrollDir && (scrollY - lastScrollY > 10 || scrollY - lastScrollY < -10)) {
+        setScrollDir(direction);
+      }
+      lastScrollY = scrollY > 0 ? scrollY : 0;
+    };
+    window.addEventListener('scroll', updateScrollDir);
+    return () => window.removeEventListener('scroll', updateScrollDir);
+  }, [scrollDir]);
+  return { scrollDir, isTop };
+};
+
+const useTyping = (text, speed = 100) => {
+  const [displayed, setDisplayed] = useState('');
+  useEffect(() => {
+    let i = 0;
+    setDisplayed('');
+    const timer = setInterval(() => {
+      if (i < text.length) {
+        setDisplayed(prev => prev + text.charAt(i));
+        i++;
+      } else {
+        clearInterval(timer);
+      }
+    }, speed);
+    return () => clearInterval(timer);
+  }, [text, speed]);
+  return displayed;
+};
+
+// --- REUSABLE COMPONENTS ---
+
+const FadeUp = ({ children, delay = 0, className = '' }) => {
+  const [ref, inView] = useIntersectionObserver();
+  return (
+    <div 
+      ref={ref} 
+      className={`transition-all duration-1000 ease-out ${inView ? 'opacity-100 translate-y-0 blur-0' : 'opacity-0 translate-y-16 blur-[4px]'} ${className}`}
+      style={{ transitionDelay: `${delay}ms` }}
+    >
+      {children}
+    </div>
+  );
+};
+
+const TiltCard = ({ children, className = '' }) => {
+  const ref = useRef(null);
+  const [style, setStyle] = useState({});
+
+  const handleMouseMove = (e) => {
+    if (!ref.current) return;
+    const { left, top, width, height } = ref.current.getBoundingClientRect();
+    const x = (e.clientX - left - width / 2) / 20; // rotation intensity
+    const y = (e.clientY - top - height / 2) / -20;
+    setStyle({ transform: `rotateY(${x}deg) rotateX(${y}deg) scale3d(1.02, 1.02, 1.02)` });
+  };
+
+  const handleMouseLeave = () => {
+    setStyle({ transform: 'rotateY(0deg) rotateX(0deg) scale3d(1, 1, 1)' });
+  };
+
+  return (
+    <div className={`tilt-wrapper interactive ${className}`}>
+      <div 
+        ref={ref}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
+        className="tilt-inner w-full h-full glass-card rounded-2xl overflow-hidden shadow-2xl"
+        style={style}
+      >
+        {children}
+      </div>
+    </div>
+  );
+};
+
+// --- MAIN APP ---
+
+export default function App() {
+  const [loading, setLoading] = useState(true);
+  const [progress, setProgress] = useState(0);
+  const { x, y, isHovering } = useMousePosition();
+  const { scrollDir, isTop } = useScrollDirection();
+  
+  // Easter Egg State
+  const [clicks, setClicks] = useState(0);
+  const [isCyberpunk, setIsCyberpunk] = useState(false);
+
+  // Preloader Logic
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setProgress(p => {
+        if (p >= 100) {
+          clearInterval(interval);
+          setTimeout(() => setLoading(false), 500);
+          return 100;
+        }
+        return p + 4;
+      });
+    }, 100);
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleLogoClick = () => {
+    setClicks(c => c + 1);
+    if (clicks + 1 >= 5 && !isCyberpunk) {
+      setIsCyberpunk(true);
+      // Optional trigger sound or major effect
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="h-screen w-screen bg-[#050505] flex flex-col items-center justify-center relative overflow-hidden z-[100]">
+        <GlobalStyles />
+        <div className="relative font-heading text-5xl md:text-7xl font-extrabold text-white mb-8 tracking-widest animate-glitch" data-text="FARISVERSE">
+          FARISVERSE
+        </div>
+        <div className="w-64 h-1 bg-white/20 rounded-full overflow-hidden">
+          <div className="h-full bg-[#00E5FF] transition-all duration-100 ease-out neon-glow" style={{ width: `${progress}%` }}></div>
+        </div>
+        <div className="mt-4 font-code text-[#B6B8C5] text-sm tracking-widest">{progress}% // INITIALIZING...</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className={`min-h-screen relative transition-colors duration-1000 ${isCyberpunk ? 'cyberpunk-mode' : ''}`}>
+      <GlobalStyles />
+      <div className="noise-overlay"></div>
+
+      {/* Custom Cursor */}
+      <div 
+        className="fixed top-0 left-0 w-8 h-8 rounded-full border-2 border-[var(--primary)] pointer-events-none z-[999] transition-transform duration-150 ease-out flex items-center justify-center mix-blend-difference"
+        style={{ transform: `translate(${x - 16}px, ${y - 16}px) scale(${isHovering ? 1.8 : 1})`, backgroundColor: isHovering ? 'rgba(0, 229, 255, 0.2)' : 'transparent' }}
+      >
+        <div className="w-1 h-1 bg-[var(--primary)] rounded-full"></div>
+      </div>
+
+      {/* Aurora Background Effect */}
+      <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden opacity-40">
+        <div 
+          className="absolute top-[-10%] left-[-10%] w-[50vw] h-[50vw] rounded-full blur-[150px] animate-pulse transition-transform duration-1000" 
+          style={{ backgroundColor: 'var(--primary)', animationDuration: '8s', transform: `translate(${x * 0.02}px, ${y * 0.02}px)` }}
+        ></div>
+        <div 
+          className="absolute bottom-[-10%] right-[-10%] w-[40vw] h-[40vw] rounded-full blur-[150px] animate-pulse transition-transform duration-1000" 
+          style={{ backgroundColor: 'var(--secondary)', animationDuration: '12s', animationDelay: '2s', transform: `translate(${x * -0.02}px, ${y * -0.02}px)` }}
+        ></div>
+        <div 
+          className="absolute top-[40%] left-[60%] w-[30vw] h-[30vw] rounded-full blur-[120px] animate-pulse transition-transform duration-1000" 
+          style={{ backgroundColor: 'var(--accent2)', animationDuration: '10s', animationDelay: '4s' }}
+        ></div>
+      </div>
+
+      {/* NAVBAR */}
+      <nav className={`fixed top-0 w-full z-50 transition-all duration-500 ${scrollDir === 'down' && !isTop ? '-translate-y-full' : 'translate-y-0'} ${isTop ? 'bg-transparent py-6' : 'glass-card py-4 border-b border-white/10 shadow-2xl'}`}>
+        <div className="container mx-auto px-6 md:px-12 flex justify-between items-center">
+          <div 
+            onClick={handleLogoClick}
+            className="font-heading text-2xl font-black tracking-wider cursor-pointer interactive z-50 text-white"
+          >
+            FARIS<span className="text-[var(--primary)]">VERSE</span>
+            {isCyberpunk && <span className="ml-2 text-xs font-code bg-[var(--accent)] text-black px-2 py-0.5 rounded-sm">CYBER_MODE</span>}
+          </div>
+          
+          <div className="hidden md:flex gap-8 font-code text-sm">
+            {['About', 'Skills', 'Projects', 'Experience'].map((item, i) => (
+              <a key={i} href={`#${item.toLowerCase()}`} className="text-[var(--text-sub)] hover:text-[var(--primary)] transition-colors interactive">
+                <span className="text-[var(--primary)] opacity-50 mr-1">0{i+1}.</span>{item}
+              </a>
+            ))}
+          </div>
+          
+          <a href="#contact" className="hidden md:flex items-center gap-2 px-5 py-2.5 rounded-full border border-[var(--primary)] text-[var(--primary)] font-code text-sm hover:bg-[var(--primary)] hover:text-[var(--bg-color)] transition-all neon-glow interactive">
+            Terminal <ChevronRight size={16} />
+          </a>
+        </div>
+      </nav>
+
+      {/* MAIN CONTENT */}
+      <main className="relative z-10 flex flex-col items-center">
+        
+        {/* 1. HERO SECTION */}
+        <section id="home" className="min-h-screen w-full flex items-center justify-center pt-20 px-6 md:px-12 relative overflow-hidden">
+          <div className="container max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+            {/* Left Content */}
+            <div className="flex flex-col z-10">
+              <FadeUp delay={100}>
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full glass-card border-[var(--primary)] border mb-6 text-sm font-code text-[var(--primary)] w-max">
+                  <span className="relative flex h-3 w-3">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--primary)] opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-3 w-3 bg-[var(--primary)]"></span>
+                  </span>
+                  Sistem Online • SMT 2
+                </div>
+              </FadeUp>
+              
+              <FadeUp delay={200}>
+                <h1 className="font-heading text-5xl md:text-7xl lg:text-8xl font-black mb-2 leading-none uppercase">
+                  <HeroTyping text="AL HUFAIRU" />
+                </h1>
+                <h2 className="text-2xl md:text-3xl font-light text-[var(--text-sub)] mb-6">
+                  Mahasiswa <span className="text-[var(--primary)] font-semibold tracking-wider">Universitas Islam Batik Surakarta</span>
+                </h2>
+              </FadeUp>
+
+              <FadeUp delay={400}>
+                <p className="text-[var(--text-sub)] max-w-xl text-lg leading-relaxed mb-8 border-l-2 border-[var(--primary)] pl-6">
+                  Building Meaningful Experiences Through Design, Technology, and Knowledge. Pengembang Web Interaktif & Pembelajar Sepanjang Hayat.
+                </p>
+              </FadeUp>
+
+              <FadeUp delay={600} className="flex flex-wrap gap-4 font-code">
+                <a href="#projects" className="px-8 py-4 rounded-full bg-[var(--primary)] text-[var(--bg-color)] font-bold hover:scale-105 transition-transform flex items-center gap-2 interactive neon-glow shadow-lg">
+                  Execute Projects() <ArrowUpRight size={20} />
+                </a>
+                <a href="#contact" className="px-8 py-4 rounded-full glass-card text-white hover:border-[var(--secondary)] hover:text-[var(--secondary)] transition-all flex items-center gap-2 interactive">
+                  Contact.init()
+                </a>
+              </FadeUp>
+            </div>
+
+            {/* Right Content - 3D/Floating Elements */}
+            <div className="relative flex justify-center items-center h-[500px] z-10">
+              <FadeUp delay={500} className="relative">
+                {/* Floating Image Wrapper */}
+                <div className="relative w-72 h-72 md:w-96 md:h-96 rounded-full p-2 bg-gradient-to-tr from-[var(--primary)] via-[var(--accent2)] to-[var(--secondary)] animate-spin-slow rounded-full overflow-visible" style={{ animationDuration: '10s' }}>
+                  <div className="w-full h-full rounded-full overflow-hidden border-[6px] border-[var(--bg-color)] relative" style={{ animation: 'spin 10s linear reverse infinite' }}>
+                    {/* Placeholder image simulating the user */}
+                    <img 
+                      src="https://images.unsplash.com/photo-1555952517-2e8e729e0b44?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80" 
+                      alt="Al Hufairu" 
+                      className="w-full h-full object-cover scale-110 hover:scale-100 transition-transform duration-700 mix-blend-luminosity hover:mix-blend-normal"
+                    />
+                  </div>
+                </div>
+                
+                {/* Floating badges */}
+                <div className="absolute top-10 -left-10 glass-card p-4 rounded-2xl animate-bounce border border-[var(--success)] interactive" style={{ animationDuration: '3s' }}>
+                  <Code2 className="text-[var(--success)]" size={32} />
+                </div>
+                <div className="absolute bottom-10 -right-4 glass-card p-4 rounded-2xl animate-bounce border border-[var(--secondary)] interactive" style={{ animationDuration: '4s', animationDelay: '1s' }}>
+                  <Terminal className="text-[var(--secondary)]" size={32} />
+                </div>
+              </FadeUp>
+            </div>
+          </div>
+        </section>
+
+        {/* 2. ABOUT & STATS (Parallax & Counters) */}
+        <section id="about" className="w-full py-32 px-6 md:px-12 relative">
+          <div className="container max-w-6xl mx-auto">
+            <div className="flex flex-col md:flex-row gap-16">
+              <div className="md:w-1/2">
+                <SectionTitle number="01" title="Initial_State" subtitle="Tentang Saya" />
+                <FadeUp delay={200}>
+                  <p className="text-xl text-[var(--text-sub)] leading-relaxed mb-6 font-light">
+                    Saya adalah mahasiswa <span className="text-white font-medium">Semester 2</span> di <span className="text-gradient font-bold">Universitas Islam Batik Surakarta</span> yang memiliki ketertarikan mendalam pada pengembangan web modern dan desain antarmuka interaktif.
+                  </p>
+                  <p className="text-lg text-[var(--text-sub)] leading-relaxed mb-8">
+                    Fokus saya adalah menciptakan pengalaman visual yang menarik melalui kombinasi desain UI/UX, animasi kompleks, dan pemrograman berbasis React/Next.js. 
+                  </p>
+                  <div className="p-6 glass-card rounded-2xl border-l-4 border-[var(--accent)] font-code text-sm">
+                    "Terus belajar, terus berkembang, dan menciptakan karya yang bermanfaat."
+                  </div>
+                </FadeUp>
+              </div>
+              
+              <div className="md:w-1/2 grid grid-cols-2 gap-6">
+                <StatCard number={20} suffix="+" label="Projects Completed" delay={100} color="var(--primary)" />
+                <StatCard number={5} suffix="+" label="Certifications" delay={200} color="var(--secondary)" />
+                <StatCard number={1000} suffix="+" label="Hours Coding" delay={300} color="var(--accent)" />
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* 3. SKILLS (Glassmorphism) */}
+        <section id="skills" className="w-full py-32 px-6 md:px-12 bg-black/20">
+          <div className="container max-w-6xl mx-auto">
+            <SectionTitle number="02" title="Tech_Stack" subtitle="Keahlian" align="center" />
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-16">
+              <SkillCategory title="Frontend Development" icon={<MonitorPlay />} skills={['Next.js 15', 'TypeScript', 'Tailwind CSS', 'Framer Motion']} delay={100} />
+              <SkillCategory title="Backend & Tools" icon={<Server />} skills={['Node.js', 'REST API', 'Git & Github', 'Vercel']} delay={200} />
+              <SkillCategory title="Creative & Soft Skills" icon={<Palette />} skills={['UI/UX Design', 'GSAP / Spline', 'Video Editing', 'Tahfidz']} delay={300} />
+            </div>
+          </div>
+        </section>
+
+        {/* 4. PROJECTS (Tilt Cards) */}
+        <section id="projects" className="w-full py-32 px-6 md:px-12 relative">
+          <div className="container max-w-7xl mx-auto">
+            <div className="flex justify-between items-end mb-16">
+              <SectionTitle number="03" title="Deployed_Nodes" subtitle="Proyek Pilihan" />
+              <a href="#" className="hidden md:flex font-code text-[var(--primary)] hover:text-white transition-colors items-center gap-2 interactive">
+                View All Repo <ArrowUpRight size={18} />
+              </a>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
+              <ProjectCard 
+                title="AI Resume Generator"
+                category="Frontend / AI"
+                image="https://images.unsplash.com/photo-1677442136019-21780ecad995?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80"
+                tech={['Next.js', 'Tailwind', 'OpenAI']}
+              />
+              <ProjectCard 
+                title="Interactive 3D Portfolio"
+                category="WebGL / Motion"
+                image="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80"
+                tech={['React Three Fiber', 'GSAP']}
+              />
+              <ProjectCard 
+                title="Sistem Akademik UIBS"
+                category="Fullstack"
+                image="https://images.unsplash.com/photo-1551288049-bebda4e38f71?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80"
+                tech={['TypeScript', 'Supabase', 'Next.js']}
+              />
+            </div>
+          </div>
+        </section>
+
+        {/* 5. VIDEO SHOWCASE */}
+        <section className="w-full py-20 px-6 md:px-12">
+          <div className="container max-w-5xl mx-auto">
+             <TiltCard className="w-full aspect-video rounded-3xl overflow-hidden group">
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent z-10 pointer-events-none"></div>
+                <img 
+                  src="https://images.unsplash.com/photo-1531297172867-4f50513d2446?ixlib=rb-4.0.3&auto=format&fit=crop&w=1600&q=80" 
+                  alt="Showreel" 
+                  className="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-opacity duration-500 group-hover:scale-105"
+                />
+                <div className="absolute inset-0 z-20 flex flex-col items-center justify-center">
+                  <button className="w-24 h-24 rounded-full glass-card flex items-center justify-center text-white hover:text-[var(--primary)] hover:scale-110 transition-all border border-[var(--primary)] interactive neon-glow">
+                    <Play size={40} className="ml-2" />
+                  </button>
+                  <h3 className="font-heading text-3xl font-bold mt-6 tracking-wide">2026 SHOWREEL</h3>
+                  <p className="font-code text-sm text-[var(--primary)] mt-2">Watch the cinematic presentation</p>
+                </div>
+             </TiltCard>
+          </div>
+        </section>
+
+        {/* 6. EXPERIENCE TIMELINE */}
+        <section id="experience" className="w-full py-32 px-6 md:px-12 bg-black/30">
+          <div className="container max-w-4xl mx-auto">
+            <SectionTitle number="04" title="System_Log" subtitle="Pengalaman & Edukasi" />
+            
+            <div className="mt-16 space-y-12 border-l-2 border-[var(--card-bg)] pl-8 md:pl-12 relative ml-4 md:ml-0">
+              <TimelineItem 
+                year="2026 - Present"
+                title="Frontend Developer"
+                org="Freelance / Independent"
+                desc="Membangun antarmuka interaktif dan website performa tinggi untuk klien UMKM dan startup lokal."
+                delay={100}
+                color="var(--primary)"
+              />
+              <TimelineItem 
+                year="2025 - Present"
+                title="Mahasiswa S1"
+                org="Universitas Islam Batik Surakarta"
+                desc="Menjalani studi semester 2, aktif dalam pengembangan keilmuan teknologi informasi dan desain UI/UX."
+                delay={200}
+                color="var(--secondary)"
+              />
+              <TimelineItem 
+                year="2023 - 2024"
+                title="Eksplorasi Web Development"
+                org="Self Taught"
+                desc="Menyelesaikan 1000+ jam belajar mandiri algoritma, struktur data, React.js, dan animasi web."
+                delay={300}
+                color="var(--accent)"
+                isLast
+              />
+            </div>
+          </div>
+        </section>
+
+        {/* 7. CONTACT (Gradient Glow) */}
+        <section id="contact" className="w-full py-32 px-6 md:px-12 relative overflow-hidden">
+          {/* Background Glow specific to contact */}
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-[var(--primary)]/10 rounded-full blur-[200px] pointer-events-none"></div>
+
+          <div className="container max-w-4xl mx-auto relative z-10 glass-card p-8 md:p-16 rounded-[2.5rem] border border-[var(--primary)]/30 text-center">
+            <FadeUp>
+              <h2 className="font-heading text-4xl md:text-6xl font-black mb-6">Let's <span className="text-gradient">Collaborate</span></h2>
+              <p className="text-[var(--text-sub)] text-lg mb-10 max-w-2xl mx-auto">
+                Tertarik untuk membangun pengalaman digital yang luar biasa? Sistem saya selalu online untuk menerima tantangan baru.
+              </p>
+            </FadeUp>
+            
+            <FadeUp delay={200} className="flex flex-col md:flex-row gap-4 justify-center">
+              <a href="mailto:alhufairu@example.com" className="px-8 py-4 rounded-full bg-white text-black font-bold text-lg hover:scale-105 transition-transform flex items-center justify-center gap-2 interactive">
+                <Mail size={20} /> Initialize Email
+              </a>
+              <a href="#" className="px-8 py-4 rounded-full glass-card border border-[var(--text-sub)] hover:border-[var(--primary)] hover:text-[var(--primary)] transition-all flex items-center justify-center gap-2 interactive">
+                Schedule Meeting <ArrowUpRight size={20} />
+              </a>
+            </FadeUp>
+          </div>
+        </section>
+
+      </main>
+
+      {/* FOOTER */}
+      <footer className="w-full py-12 border-t border-white/5 relative z-10 bg-[var(--bg-color)]">
+        <div className="container mx-auto px-6 md:px-12 flex flex-col md:flex-row justify-between items-center gap-6">
+          <div className="font-heading font-bold text-xl tracking-widest text-white">
+            FARIS<span className="text-[var(--primary)]">VERSE</span>
+          </div>
+          
+          <div className="flex gap-6">
+            <SocialIcon icon={<Github size={20} />} />
+            <SocialIcon icon={<Linkedin size={20} />} />
+            <SocialIcon icon={<Instagram size={20} />} />
+          </div>
+          
+          <div className="font-code text-[var(--text-sub)] text-sm">
+            © 2026 Al Hufairu. System Runtime Active.
+          </div>
+        </div>
+      </footer>
+    </div>
+  );
+}
+
+// --- SUB COMPONENTS ---
+
+const HeroTyping = ({ text }) => {
+  const displayedText = useTyping(text, 120);
+  return (
+    <span className="text-gradient drop-shadow-2xl">
+      {displayedText}
+      <span className="animate-pulse text-white inline-block w-4 h-[1em] bg-[var(--primary)] ml-2 align-middle"></span>
+    </span>
+  );
+};
+
+const SectionTitle = ({ number, title, subtitle, align = "left" }) => (
+  <FadeUp className={`mb-12 ${align === 'center' ? 'text-center flex flex-col items-center' : ''}`}>
+    <div className="flex items-center gap-4 font-code text-[var(--primary)] mb-4">
+      <span className="text-sm border border-[var(--primary)] px-2 py-1 rounded">SEC_{number}</span>
+      <div className="h-[1px] w-12 bg-[var(--primary)]"></div>
+      <span className="tracking-widest uppercase text-sm">{title}</span>
+    </div>
+    <h2 className="font-heading text-4xl md:text-5xl font-bold text-white">{subtitle}</h2>
+  </FadeUp>
+);
+
+const StatCard = ({ number, suffix, label, delay, color }) => {
+  const [ref, inView] = useIntersectionObserver();
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    if (!inView) return;
+    let start = 0;
+    const duration = 2000;
+    const increment = number / (duration / 16);
+    const timer = setInterval(() => {
+      start += increment;
+      if (start >= number) {
+        setCount(number);
+        clearInterval(timer);
+      } else {
+        setCount(Math.ceil(start));
+      }
+    }, 16);
+    return () => clearInterval(timer);
+  }, [inView, number]);
+
+  return (
+    <FadeUp delay={delay}>
+      <div ref={ref} className="glass-card p-6 rounded-2xl border-t-2 transition-transform hover:-translate-y-2" style={{ borderTopColor: color }}>
+        <h3 className="font-heading text-4xl md:text-5xl font-black mb-2" style={{ color }}>{count}{suffix}</h3>
+        <p className="font-code text-[var(--text-sub)] text-sm uppercase tracking-wider">{label}</p>
+      </div>
+    </FadeUp>
+  );
+};
+
+const SkillCategory = ({ title, icon, skills, delay }) => (
+  <FadeUp delay={delay}>
+    <TiltCard className="h-full">
+      <div className="p-8 flex flex-col h-full">
+        <div className="w-14 h-14 rounded-xl glass-card flex items-center justify-center text-[var(--primary)] mb-6 neon-glow">
+          {icon}
+        </div>
+        <h3 className="font-heading text-xl font-bold mb-6 text-white">{title}</h3>
+        <ul className="space-y-4 flex-grow">
+          {skills.map((skill, i) => (
+            <li key={i} className="flex items-center gap-3 font-code text-[var(--text-sub)] text-sm">
+              <CheckCircle2 size={16} className="text-[var(--success)]" /> {skill}
+            </li>
+          ))}
+        </ul>
+      </div>
+    </TiltCard>
+  </FadeUp>
+);
+
+const ProjectCard = ({ title, category, image, tech }) => (
+  <FadeUp>
+    <TiltCard>
+      <div className="relative h-64 overflow-hidden group">
+        <div className="absolute inset-0 bg-black/40 group-hover:bg-transparent transition-colors z-10 pointer-events-none"></div>
+        <img src={image} alt={title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
+        <div className="absolute top-4 left-4 z-20 px-3 py-1 bg-black/50 backdrop-blur-md rounded-full font-code text-xs text-[var(--primary)] border border-[var(--primary)]/30">
+          {category}
+        </div>
+      </div>
+      <div className="p-6">
+        <h3 className="font-heading text-2xl font-bold mb-4 text-white hover:text-[var(--primary)] transition-colors cursor-pointer">{title}</h3>
+        <div className="flex flex-wrap gap-2 mb-6">
+          {tech.map((t, i) => (
+            <span key={i} className="font-code text-xs px-2 py-1 bg-[var(--bg-color)] rounded text-[var(--text-sub)]">
+              {t}
+            </span>
+          ))}
+        </div>
+        <div className="flex justify-between items-center pt-4 border-t border-white/10">
+          <a href="#" className="font-code text-sm text-[var(--primary)] flex items-center gap-2 hover:gap-3 transition-all interactive">
+            View Case Study <ArrowUpRight size={16} />
+          </a>
+          <div className="flex gap-3">
+             <a href="#" className="text-[var(--text-sub)] hover:text-white interactive"><Github size={20}/></a>
+             <a href="#" className="text-[var(--text-sub)] hover:text-white interactive"><ExternalLink size={20}/></a>
+          </div>
+        </div>
+      </div>
+    </TiltCard>
+  </FadeUp>
+);
+
+const TimelineItem = ({ year, title, org, desc, delay, isLast, color }) => (
+  <FadeUp delay={delay} className="relative">
+    {/* Glowing dot */}
+    <div 
+      className="absolute -left-[42px] md:-left-[58px] top-1 w-5 h-5 rounded-full border-4 border-[var(--bg-color)] z-10 shadow-[0_0_15px_rgba(255,255,255,0.5)]"
+      style={{ backgroundColor: color, boxShadow: `0 0 15px ${color}` }}
+    ></div>
+    
+    <div className="glass-card p-6 md:p-8 rounded-2xl mb-12 hover:-translate-y-2 transition-transform border-l-4" style={{ borderLeftColor: color }}>
+      <span className="font-code text-sm tracking-wider mb-2 block" style={{ color }}>{year}</span>
+      <h3 className="font-heading text-2xl font-bold text-white mb-1">{title}</h3>
+      <h4 className="text-lg text-[var(--text-sub)] font-medium mb-4">{org}</h4>
+      <p className="text-[var(--text-sub)] leading-relaxed font-light">{desc}</p>
+    </div>
+  </FadeUp>
+);
+
+const SocialIcon = ({ icon }) => (
+  <a href="#" className="w-12 h-12 rounded-full glass-card flex items-center justify-center text-[var(--text-sub)] hover:text-[var(--bg-color)] hover:bg-[var(--primary)] transition-all interactive">
+    {icon}
+  </a>
+);
