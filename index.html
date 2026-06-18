@@ -1,270 +1,124 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { 
-  Github, Linkedin, Instagram, Mail, ExternalLink, 
-  ChevronRight, Play, X, Code2, Server, Palette, 
-  Terminal, MonitorPlay, Award, ArrowUpRight, CheckCircle2
-} from 'lucide-react';
-
-const GlobalStyles = () => (
-  <style dangerouslySetInnerHTML={{__html: `
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;700&family=Poppins:wght@800&display=swap');
-
-    :root {
-      --bg-color: #0B1026;
-      --primary: #00E5FF;
-      --secondary: #FF4FD8;
-      --accent: #FFD93D;
-      --accent2: #7C4DFF;
-      --success: #00FF85;
-      --card-bg: rgba(255, 255, 255, 0.05);
-      --text-main: #FFFFFF;
-      --text-sub: #B6B8C5;
-    }
-
-    .cyberpunk-mode {
-      --bg-color: #050505;
-      --primary: #FCE205; 
-      --secondary: #00F0FF; 
-      --accent: #FF003C; 
-      --accent2: #B026FF; 
-      --card-bg: rgba(255, 0, 60, 0.08);
-    }
-
-    body {
-      background-color: var(--bg-color);
-      color: var(--text-main);
-      font-family: 'Inter', sans-serif;
-      overflow-x: hidden;
-      cursor: none; 
-    }
-
-    h1, h2, h3, .font-heading { font-family: 'Poppins', sans-serif; }
-    code, .font-code { font-family: 'JetBrains Mono', monospace; }
-
-    ::-webkit-scrollbar { width: 8px; }
-    ::-webkit-scrollbar-track { background: var(--bg-color); }
-    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 10px; }
-    ::-webkit-scrollbar-thumb:hover { background: var(--primary); }
-
-    @keyframes glitch {
-      0% { clip-path: inset(40% 0 61% 0); transform: translate(-2px, 2px); }
-      20% { clip-path: inset(92% 0 1% 0); transform: translate(2px, -2px); }
-      40% { clip-path: inset(43% 0 1% 0); transform: translate(2px, 2px); }
-      60% { clip-path: inset(25% 0 58% 0); transform: translate(-2px, -2px); }
-      80% { clip-path: inset(54% 0 7% 0); transform: translate(2px, 2px); }
-      100% { clip-path: inset(58% 0 43% 0); transform: translate(-2px, -2px); }
-    }
-    .animate-glitch::before, .animate-glitch::after {
-      content: attr(data-text);
-      position: absolute;
-      top: 0; left: 0; width: 100%; height: 100%;
-      background: var(--bg-color);
-    }
-    .animate-glitch::before {
-      left: 2px; text-shadow: -2px 0 var(--secondary);
-      animation: glitch 2s infinite linear alternate-reverse;
-    }
-    .animate-glitch::after {
-      left: -2px; text-shadow: -2px 0 var(--primary);
-      animation: glitch 3s infinite linear alternate-reverse;
-    }
-
-    .noise-overlay {
-      position: fixed; inset: 0; z-index: 50; pointer-events: none;
-      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
-      opacity: 0.03; mix-blend-mode: overlay;
-    }
-
-    .glass-card {
-      background: var(--card-bg);
-      backdrop-filter: blur(12px);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-    }
-    
-    .tilt-wrapper { perspective: 1000px; }
-    .tilt-inner { transition: transform 0.1s ease-out; transform-style: preserve-3d; }
-  `}} />
-);
-
-const useIntersectionObserver = (options = { threshold: 0.1 }) => {
-  const [inView, setInView] = useState(false);
-  const ref = useRef(null);
-  useEffect(() => {
-    const observer = new IntersectionObserver(([entry]) => {
-      if (entry.isIntersecting) {
-        setInView(true);
-        observer.unobserve(entry.target);
-      }
-    }, options);
-    if (ref.current) observer.observe(ref.current);
-    return () => observer.disconnect();
-  }, []);
-  return [ref, inView];
-};
-
-const useMousePosition = () => {
-  const [position, setPosition] = useState({ x: 0, y: 0 });
-  const [isHovering, setIsHovering] = useState(false);
-  useEffect(() => {
-    const updatePosition = (e) => setPosition({ x: e.clientX, y: e.clientY });
-    const handleMouseOver = (e) => {
-      if (e.target.closest('button') || e.target.closest('a') || e.target.classList.contains('interactive')) {
-        setIsHovering(true);
-      } else {
-        setIsHovering(false);
-      }
-    };
-    window.addEventListener('mousemove', updatePosition);
-    window.addEventListener('mouseover', handleMouseOver);
-    return () => {
-      window.removeEventListener('mousemove', updatePosition);
-      window.removeEventListener('mouseover', handleMouseOver);
-    };
-  }, []);
-  return { ...position, isHovering };
-};
-
-const useTyping = (text, speed = 100) => {
-  const [displayed, setDisplayed] = useState('');
-  useEffect(() => {
-    let i = 0;
-    const timer = setInterval(() => {
-      if (i < text.length) {
-        setDisplayed(prev => prev + text.charAt(i));
-        i++;
-      } else clearInterval(timer);
-    }, speed);
-    return () => clearInterval(timer);
-  }, [text, speed]);
-  return displayed;
-};
-
-const FadeUp = ({ children, delay = 0, className = '' }) => {
-  const [ref, inView] = useIntersectionObserver();
-  return (
-    <div 
-      ref={ref} 
-      className={`transition-all duration-1000 ease-out ${inView ? 'opacity-100 translate-y-0 blur-0' : 'opacity-0 translate-y-16 blur-[4px]'} ${className}`}
-      style={{ transitionDelay: `${delay}ms` }}
-    >
-      {children}
-    </div>
-  );
-};
-
-const TiltCard = ({ children, className = '' }) => {
-  const ref = useRef(null);
-  const [style, setStyle] = useState({});
-  const handleMouseMove = (e) => {
-    if (!ref.current) return;
-    const { left, top, width, height } = ref.current.getBoundingClientRect();
-    const x = (e.clientX - left - width / 2) / 20;
-    const y = (e.clientY - top - height / 2) / -20;
-    setStyle({ transform: `rotateY(${x}deg) rotateX(${y}deg) scale3d(1.02, 1.02, 1.02)` });
-  };
-  const handleMouseLeave = () => setStyle({ transform: 'rotateY(0deg) rotateX(0deg) scale3d(1, 1, 1)' });
-  return (
-    <div className={`tilt-wrapper interactive ${className}`}>
-      <div ref={ref} onMouseMove={handleMouseMove} onMouseLeave={handleMouseLeave} className="tilt-inner w-full h-full glass-card rounded-2xl overflow-hidden" style={style}>
-        {children}
-      </div>
-    </div>
-  );
-};
-
-export default function App() {
-  const [loading, setLoading] = useState(true);
-  const [progress, setProgress] = useState(0);
-  const { x, y, isHovering } = useMousePosition();
-  const [clicks, setClicks] = useState(0);
-  const [isCyberpunk, setIsCyberpunk] = useState(false);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setProgress(p => {
-        if (p >= 100) {
-          clearInterval(interval);
-          setTimeout(() => setLoading(false), 500);
-          return 100;
+<!DOCTYPE html>
+<html lang="id" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AL HUFAIRU | Farisverse Portfolio</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Poppins:wght@700;900&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.263.1/lucide.min.js"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #0B1026; color: #FFFFFF; overflow-x: hidden; }
+        h1, h2, h3 { font-family: 'Poppins', sans-serif; }
+        
+        .cursor-follower {
+            position: fixed; width: 20px; height: 20px; border: 2px solid #00E5FF;
+            border-radius: 50%; pointer-events: none; z-index: 9999; transition: transform 0.1s ease;
         }
-        return p + 4;
-      });
-    }, 100);
-    return () => clearInterval(interval);
-  }, []);
 
-  if (loading) {
-    return (
-      <div className="h-screen w-screen bg-[#050505] flex flex-col items-center justify-center relative overflow-hidden">
-        <GlobalStyles />
-        <div className="relative font-heading text-5xl md:text-7xl font-extrabold text-white mb-8 tracking-widest animate-glitch" data-text="FARISVERSE">FARISVERSE</div>
-        <div className="w-64 h-1 bg-white/20 rounded-full overflow-hidden">
-          <div className="h-full bg-[#00E5FF] transition-all duration-100" style={{ width: `${progress}%` }}></div>
+        .glass { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        
+        .gradient-text {
+            background: linear-gradient(135deg, #00E5FF, #7C4DFF, #FF4FD8);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+
+        .hero-glow {
+            position: absolute; width: 300px; height: 300px; border-radius: 50%;
+            background: radial-gradient(circle, rgba(0,229,255,0.2) 0%, rgba(124,77,255,0.1) 50%, transparent 70%);
+            filter: blur(50px); z-index: -1;
+        }
+
+        .animate-float { animation: float 4s ease-in-out infinite; }
+        @keyframes float { 0% { transform: translateY(0px); } 50% { transform: translateY(-20px); } 100% { transform: translateY(0px); } }
+    </style>
+</head>
+<body class="selection:bg-[#00E5FF] selection:text-[#0B1026]">
+
+    <div class="cursor-follower" id="cursor"></div>
+
+    <nav class="fixed w-full z-50 p-6 flex justify-between items-center transition-all duration-300">
+        <div class="text-2xl font-bold tracking-tighter">AL<span class="text-[#00E5FF]">HUFAIRU</span></div>
+        <div class="hidden md:flex space-x-8 text-sm uppercase tracking-widest">
+            <a href="#about" class="hover:text-[#00E5FF] transition">About</a>
+            <a href="#skills" class="hover:text-[#00E5FF] transition">Skills</a>
+            <a href="#projects" class="hover:text-[#00E5FF] transition">Projects</a>
+            <a href="#contact" class="px-6 py-2 border border-[#00E5FF] rounded-full hover:bg-[#00E5FF] hover:text-[#0B1026] transition">Contact</a>
         </div>
-      </div>
-    );
-  }
+    </nav>
 
-  return (
-    <div className={`min-h-screen relative transition-colors duration-1000 ${isCyberpunk ? 'cyberpunk-mode' : ''}`}>
-      <GlobalStyles />
-      <div className="noise-overlay"></div>
-
-      {/* Custom Cursor */}
-      <div className="fixed top-0 left-0 w-8 h-8 rounded-full border border-[var(--primary)] pointer-events-none z-[999] transition-transform duration-150 flex items-center justify-center mix-blend-difference"
-        style={{ transform: `translate(${x - 16}px, ${y - 16}px) scale(${isHovering ? 2 : 1})` }}>
-        <div className="w-1 h-1 bg-[var(--primary)] rounded-full"></div>
-      </div>
-
-      {/* NAVBAR */}
-      <nav className="fixed top-0 w-full z-50 p-6 flex justify-between items-center glass-card border-none bg-transparent">
-        <div onClick={() => { setClicks(c => c + 1); if (clicks + 4 >= 5) setIsCyberpunk(!isCyberpunk); }} className="font-heading text-2xl font-black text-white cursor-pointer hover:text-[var(--primary)] transition-colors">
-          FARIS<span className="text-[var(--primary)]">VERSE</span>
-        </div>
-        <div className="hidden md:flex gap-8 font-code text-sm text-[var(--text-sub)]">
-          {['About', 'Skills', 'Projects'].map(item => <a key={item} href={`#${item.toLowerCase()}`} className="hover:text-[var(--primary)] interactive">{item}</a>)}
-        </div>
-      </nav>
-
-      {/* HERO */}
-      <section className="min-h-screen flex items-center justify-center pt-20 px-6">
-        <div className="container max-w-7xl grid md:grid-cols-2 gap-12 items-center">
-          <div>
-            <div className="text-[var(--primary)] font-code mb-4">ONLINE • SMT 2</div>
-            <h1 className="font-heading text-6xl md:text-8xl font-black mb-6">
-              <span className="text-[var(--primary)]">{useTyping("AL HUFAIRU", 150)}</span>
-            </h1>
-            <p className="text-xl text-[var(--text-sub)] mb-8">Building Meaningful Experiences Through Design, Technology, and Knowledge.</p>
-            <div className="flex gap-4">
-              <button className="px-8 py-4 rounded-full bg-[var(--primary)] text-black font-bold interactive">Lihat Proyek</button>
-              <button className="px-8 py-4 rounded-full border border-[var(--text-sub)] text-white hover:border-[var(--primary)] interactive">Hubungi Saya</button>
+    <section class="relative min-h-screen flex items-center justify-center pt-20 px-6">
+        <div class="hero-glow top-20 left-10"></div>
+        <div class="max-w-6xl w-full grid md:grid-cols-2 gap-12 items-center">
+            <div>
+                <h2 class="text-[#00E5FF] font-semibold mb-2">Mahasiswa • Pembelajar Sepanjang Hayat</h2>
+                <h1 id="typing-text" class="text-5xl md:text-7xl font-black mb-6"></h1>
+                <p class="text-[#B6B8C5] mb-8 text-lg leading-relaxed">
+                    Mahasiswa semester 2 Universitas Islam Batik Surakarta yang berfokus pada pengembangan web interaktif, UI/UX, dan menciptakan pengalaman visual yang impresif.
+                </p>
+                <div class="flex gap-4">
+                    <button class="bg-gradient-to-r from-[#00E5FF] to-[#7C4DFF] px-8 py-4 rounded-full font-bold hover:scale-105 transition">Lihat Proyek</button>
+                    <button class="px-8 py-4 border border-white/20 rounded-full hover:bg-white/10 transition">Hubungi Saya</button>
+                </div>
             </div>
-          </div>
-          <div className="w-64 h-64 md:w-96 md:h-96 rounded-full border-4 border-[var(--primary)] overflow-hidden relative floating">
-            <img src="https://images.unsplash.com/photo-1555952517-2e8e729e0b44?auto=format&fit=crop&w=800&q=80" className="w-full h-full object-cover grayscale hover:grayscale-0 transition-all duration-500" alt="Al Hufairu" />
-          </div>
+            <div class="relative flex justify-center items-center">
+                <div class="w-80 h-80 rounded-full border-2 border-dashed border-[#FF4FD8] animate-spin-slow flex items-center justify-center animate-float">
+                    <div class="w-64 h-64 bg-gray-700 rounded-full overflow-hidden shadow-2xl shadow-[#00E5FF]/20">
+                        <img src="https://placehold.co/400x400/0B1026/00E5FF?text=Profile" alt="Al Hufairu" class="w-full h-full object-cover">
+                    </div>
+                </div>
+            </div>
         </div>
-      </section>
+    </section>
 
-      {/* SKILLS SECTION */}
-      <section id="skills" className="py-20 px-6 bg-black/20">
-        <div className="container max-w-6xl">
-          <h2 className="text-center font-heading text-4xl mb-16">Keahlian</h2>
-          <div className="grid md:grid-cols-3 gap-8">
-            {['Frontend Development', 'UI/UX Design', 'Interactive Motion'].map((skill, i) => (
-              <TiltCard key={i} className="p-8">
-                <Code2 className="text-[var(--primary)] mb-6" size={40} />
-                <h3 className="text-xl font-bold mb-4">{skill}</h3>
-                <p className="text-[var(--text-sub)]">Exploring modern web tech, from Next.js 15 to complex animations.</p>
-              </TiltCard>
-            ))}
-          </div>
+    <section id="about" class="py-20 px-6 max-w-6xl mx-auto">
+        <h2 class="text-4xl font-bold mb-12">About <span class="gradient-text">Me</span></h2>
+        <div class="grid md:grid-cols-3 gap-6">
+            <div class="glass p-8 rounded-2xl">
+                <h3 class="text-3xl font-bold mb-2">20+</h3>
+                <p class="text-[#B6B8C5]">Projects Completed</p>
+            </div>
+            <div class="glass p-8 rounded-2xl">
+                <h3 class="text-3xl font-bold mb-2">5+</h3>
+                <p class="text-[#B6B8C5]">Certificates</p>
+            </div>
+            <div class="glass p-8 rounded-2xl">
+                <h3 class="text-3xl font-bold mb-2">1000+</h3>
+                <p class="text-[#B6B8C5]">Hours Learning</p>
+            </div>
         </div>
-      </section>
+    </section>
 
-      <footer className="py-12 text-center text-[var(--text-sub)] font-code text-sm">
-        © 2026 Al Hufairu. System Runtime Active.
-      </footer>
-    </div>
-  );
-}
+    <footer class="py-10 text-center border-t border-white/10">
+        <p class="text-[#B6B8C5]">&copy; 2026 Al Hufairu. Built with Next.js & Tailwind.</p>
+    </footer>
+
+    <script>
+        // Typing Effect
+        const textElement = document.getElementById('typing-text');
+        const text = "AL HUFAIRU";
+        let index = 0;
+        function type() {
+            if (index < text.length) {
+                textElement.textContent += text.charAt(index);
+                index++;
+                setTimeout(type, 150);
+            }
+        }
+        window.onload = type;
+
+        // Custom Cursor
+        const cursor = document.getElementById('cursor');
+        document.addEventListener('mousemove', (e) => {
+            cursor.style.left = e.clientX + 'px';
+            cursor.style.top = e.clientY + 'px';
+        });
+
+        // Add interactive hover scale
+        document.querySelectorAll('button, a').forEach(el => {
+            el.addEventListener('mouseenter', () => cursor.style.transform = 'scale(2)');
+            el.addEventListener('mouseleave', () => cursor.style.transform = 'scale(1)');
+        });
+    </script>
+</body>
+</html>
